@@ -1,0 +1,115 @@
+/**
+ * @project_name : Suhail-Md
+ * @plugin_name : Shorts API Integration
+ * @description : A plugin to integrate Shorts API for generating short videos.
+ * @version : 1.0.0
+ * @author : Your Name
+ */
+
+const axios = require('axios');
+const { smd } = require('../lib');
+
+smd({
+    pattern: 'shorts',
+    desc: 'Generate a short video using Shorts API. Usage: !shorts <topic> [aspect] [duration]',
+    category: 'user',
+    filename: __filename
+}, async (message, match) => {
+    try {
+        const videoTopic = match[1];
+        const videoAspect = match[2] || 'portrait';
+        const maxClipDuration = parseInt(match[3]) || 5;
+
+        if (!videoTopic) {
+            return await message.reply('Please provide a video topic.');
+        }
+        if (!['portrait', 'landscape'].includes(videoAspect)) {
+            return await message.reply('Invalid video aspect. Use "portrait" or "landscape".');
+        }
+        if (isNaN(maxClipDuration) || maxClipDuration <= 0) {
+            return await message.reply('Invalid clip duration. Must be a positive number.');
+        }
+
+        const API_BASE_URL = 'https://huggingface.co/spaces/ASONTG/be';
+        const SCRIPT_ENDPOINT = `${API_BASE_URL}/api/v1/scripts`;
+        const TERMS_ENDPOINT = `${API_BASE_URL}/api/v1/terms`;
+        const VIDEO_ENDPOINT = `${API_BASE_URL}/api/v1/videos`;
+
+        let videoScript;
+        try {
+            const scriptResponse = await axios.post(SCRIPT_ENDPOINT, {
+                video_subject: videoTopic,
+                video_language: 'en',
+                paragraph_number: 3
+            });
+            videoScript = scriptResponse.data.data.video_script;
+        } catch (error) {
+            return await message.reply('Failed to generate video script.');
+        }
+
+        let videoTerms;
+        try {
+            const termsResponse = await axios.post(TERMS_ENDPOINT, {
+                video_subject: videoTopic,
+                video_script: videoScript,
+                amount: 5
+            });
+            videoTerms = termsResponse.data.data.video_terms;
+        } catch (error) {
+            return await message.reply('Failed to generate video terms.');
+        }
+
+        let taskId;
+        try {
+            const videoResponse = await axios.post(VIDEO_ENDPOINT, {
+                video_subject: videoTopic,
+                video_script: videoScript,
+                video_terms: videoTerms,
+                video_aspect: videoAspect,
+                video_concat_mode: 'random',
+                max_clip_duration: maxClipDuration,
+                source: 'local',
+                materials: [],
+                video_language: 'en',
+                voice: 'default',
+                bgm_type: 'random',
+                subtitle_enabled: true,
+                font_name: 'Arial',
+                font_size: 24,
+                text_fore_color: '#FFFFFF',
+                text_background_color: 'transparent',
+                stroke_color: '#000000',
+                stroke_width: 1.5
+            });
+            taskId = videoResponse.data.data.task_id;
+        } catch (error) {
+            return await message.reply('Failed to create video task.');
+        }
+
+        await message.reply(`Video generation task created. Task ID: ${taskId}`);
+
+        const queryTaskStatus = async (taskId) => {
+            try {
+                const statusResponse = await axios.get(`${API_BASE_URL}/api/v1/tasks/${taskId}`);
+                return statusResponse.data.data;
+            } catch (error) {
+                throw new Error('Failed to query task status.');
+            }
+        };
+
+        let taskStatus;
+        try {
+            do {
+                taskStatus = await queryTaskStatus(taskId);
+                await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds
+            } while (taskStatus.status !== 'completed');
+        } catch (error) {
+            return await message.reply('Failed to generate video.');
+        }
+
+        const videoUrl = taskStatus.videos[0];
+        await message.reply(`Your video is ready: ${videoUrl}`);
+    } catch (error) {
+        await message.reply('An error occurred while processing your request.');
+    }
+});
