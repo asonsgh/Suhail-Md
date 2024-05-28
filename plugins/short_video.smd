@@ -1,10 +1,10 @@
 let { smd, axios, Config } = require("../lib");
 
 smd({
-  pattern: 'short ?(.*)',
+  pattern: 'short (.*)',
   fromMe: true,
   desc: 'Generate a short video based on the topic',
-  type: 'fun'
+  type: 'AI tool'
 }, async (message, match) => {
   const topic = match[1];
   if (!topic) {
@@ -13,7 +13,7 @@ smd({
 
   try {
     // Step 3: Generate Video Script
-    const scriptResponse = await axios.post(`${https://huggingface.co/spaces/ASONTG/be}/api/v1/scripts`, {
+    const scriptResponse = await axios.post(`https://huggingface.co/spaces/ASONTG/be/api/v1/scripts`, {
       video_subject: topic,
       video_language: "en",
       paragraph_number: 3
@@ -22,7 +22,7 @@ smd({
     const videoScript = scriptResponse.data.data.video_script;
 
     // Step 4: Generate Video Terms
-    const termsResponse = await axios.post(`${https://huggingface.co/spaces/ASONTG/be}/api/v1/terms`, {
+    const termsResponse = await axios.post(`https://huggingface.co/spaces/ASONTG/be/api/v1/terms`, {
       video_subject: topic,
       video_script: videoScript,
       amount: 5
@@ -31,7 +31,7 @@ smd({
     const videoTerms = termsResponse.data.data.video_terms;
 
     // Step 5: Create Short Video
-    const videoResponse = await axios.post(`${https://huggingface.co/spaces/ASONTG/be}/api/v1/videos`, {
+    const videoResponse = await axios.post(`https://huggingface.co/spaces/ASONTG/be/api/v1/videos`, {
       video_subject: topic,
       video_script: videoScript,
       video_terms: videoTerms,
@@ -59,7 +59,7 @@ smd({
     let taskStatusResponse;
     do {
       await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds
-      taskStatusResponse = await axios.get(`${https://huggingface.co/spaces/ASONTG/be}/api/v1/tasks/${taskId}`);
+      taskStatusResponse = await axios.get(`https://huggingface.co/spaces/ASONTG/be/api/v1/tasks/${taskId}`);
       taskStatus = taskStatusResponse.data.data.status;
     } while (taskStatus !== "completed");
 
